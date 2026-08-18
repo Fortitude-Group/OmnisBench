@@ -1,12 +1,12 @@
-run_date: "2026-08-19"
+run_date: "2026-08-19-dryrun"
 pricing: "config/pricing/2026-08-18.yaml"
 providers:
   openai:    { base_url: "https://api.openai.com/v1",    api_key_env: "OPENAI_API_KEY",    token_param: "max_completion_tokens", send_sampling: false }
   anthropic: { base_url: "https://api.anthropic.com/v1", api_key_env: "ANTHROPIC_API_KEY", token_param: "max_tokens",            send_sampling: false }
 datasets:
-  - { kind: jsonl, name: humaneval, path: "data/humaneval.jsonl", seed: 0,
+  - { kind: jsonl, name: humaneval, path: "data/humaneval.jsonl", seed: 0, limit: 2,
       prompt_prefix: "Complete the following Python function. Return the COMPLETE function (signature + body) in a single ```python code block.\n\n" }
-  - { kind: jsonl, name: gsm8k, path: "data/gsm8k.jsonl", seed: 0,
+  - { kind: jsonl, name: gsm8k, path: "data/gsm8k.jsonl", seed: 0, limit: 2,
       prompt_prefix: "Solve the problem. Show brief reasoning, then end with a final line: 'The answer is <number>.'\n\n" }
 models:
   opus5: { provider: anthropic, model_id: "claude-opus-5" }
@@ -16,5 +16,4 @@ models:
 policies:
   - { type: always_model, name: always_big,   model: opus5 }
   - { type: always_model, name: always_cheap, model: nano }
-  - { type: random,       name: random,        pool: [opus5, gpt5, haiku, nano], seed: 0 }
   - { type: oracle,       name: oracle,        pool: [opus5, gpt5, haiku, nano] }

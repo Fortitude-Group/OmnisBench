@@ -9,9 +9,19 @@ from ..types import CompletionRequest, CompletionResponse, ModelRef, Usage
 
 
 class OpenAICompatProvider:
-    def __init__(self, name: str, base_url: str, api_key: str, transport: httpx.BaseTransport | None = None):
+    def __init__(
+        self,
+        name: str,
+        base_url: str,
+        api_key: str,
+        transport: httpx.BaseTransport | None = None,
+        token_param: str = "max_tokens",
+        send_sampling: bool = True,
+    ):
         self.name = name
         self._base_url = base_url.rstrip("/")
+        self._token_param = token_param
+        self._send_sampling = send_sampling
         self._client = httpx.Client(
             base_url=self._base_url,
             headers={"Authorization": f"Bearer {api_key}"},
@@ -23,10 +33,11 @@ class OpenAICompatProvider:
         body = {
             "model": model.model_id,
             "messages": req.messages,
-            "max_tokens": req.max_tokens,
-            "temperature": req.temperature,
-            "seed": req.seed,
+            self._token_param: req.max_tokens,
         }
+        if self._send_sampling:
+            body["temperature"] = req.temperature
+            body["seed"] = req.seed
         if req.stop:
             body["stop"] = list(req.stop)
         start = time.perf_counter()
