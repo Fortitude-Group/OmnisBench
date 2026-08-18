@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import uuid
 from pathlib import Path
 
 from .types import CompletionResponse, ModelRef, Usage
@@ -37,18 +39,21 @@ class ResponseCache:
     def put(self, key: str, resp: CompletionResponse) -> None:
         path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(
-                {
-                    "text": resp.text,
-                    "provider": resp.model.provider,
-                    "model_id": resp.model.model_id,
-                    "input_tokens": resp.usage.input_tokens,
-                    "output_tokens": resp.usage.output_tokens,
-                    "latency_ms": resp.latency_ms,
-                    "raw": resp.raw,
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
+        blob = json.dumps(
+            {
+                "text": resp.text,
+                "provider": resp.model.provider,
+                "model_id": resp.model.model_id,
+                "input_tokens": resp.usage.input_tokens,
+                "output_tokens": resp.usage.output_tokens,
+                "latency_ms": resp.latency_ms,
+                "raw": resp.raw,
+            },
+            indent=2,
         )
+        # Write to a temp file in the same directory then atomically replace the
+        # final path, so an interrupted write can't leave a partial/corrupt JSON
+        # file that would poison a later get().
+        tmp_path = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
+        tmp_path.write_text(blob, encoding="utf-8")
+        os.replace(tmp_path, path)

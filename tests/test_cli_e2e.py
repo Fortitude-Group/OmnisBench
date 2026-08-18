@@ -34,3 +34,29 @@ def test_run_report_verify_end_to_end(tmp_path):
 
     # verify must pass against the freshly written, cache-backed run (no providers used)
     assert cli.cmd_verify(str(run_dir)) == 0
+
+
+def test_verify_catches_tampered_response(tmp_path):
+    # A run whose results.json is genuinely honest passes verify.
+    run_dir = tmp_path / "run"
+    cli.cmd_run("tests/configs/e2e.yaml", str(run_dir), providers_override=_providers())
+    results_path = run_dir / "results.json"
+    doc = json.loads(results_path.read_text())
+
+    # Corrupt one item's response_text to a WRONG answer, while leaving its
+    # stored passed=True and the leaderboard numbers completely untouched.
+    # A verify that only re-derives arithmetic from the stored `passed` flags
+    # could never catch this — only a genuine re-grade of response_text can.
+    target = None
+    for it in doc["items"]:
+        if it["dataset"] == "mini" and it["item_id"] == "m1":  # capital-of-France item
+            target = it
+            break
+    assert target is not None, "expected an m1 item in results.json"
+    assert target["passed"] is True
+
+    target["response_text"] = "definitely not paris"
+    # passed flag and leaderboard are deliberately left stale/untouched.
+    results_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+
+    assert cli.cmd_verify(str(run_dir)) != 0

@@ -12,11 +12,12 @@ from .cache import ResponseCache
 from .config import build_policies, load_config
 from .cost import CostModel
 from .datasets.loaders import load_dataset_spec
+from .graders.code_unittest import GRADERS
 from .providers.base import ProviderRegistry
 from .providers.openai_compat import OpenAICompatProvider
 from .report.html import render_report
-from .runner import aggregate, build_results_doc, run_matrix
-from .types import TaskItem
+from .runner import ItemResult, aggregate, build_results_doc, run_matrix
+from .types import ModelRef, TaskItem, Usage
 
 
 def build_providers(cfg: dict, env: dict) -> ProviderRegistry:
@@ -43,9 +44,13 @@ def cmd_run(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | 
     out = Path(run_dir)
     out.mkdir(parents=True, exist_ok=True)
     cache = ResponseCache(out / "cache")
-    results = run_matrix(items, policies, providers, cache, cost)
+    results, unpriced_models = run_matrix(items, policies, providers, cache, cost)
     aggs = aggregate(results, kinds)
-    provenance = {"snapshot_date": cost.snapshot_date, "run_date": cfg.get("run_date", "")}
+    provenance = {
+        "snapshot_date": cost.snapshot_date,
+        "run_date": cfg.get("run_date", ""),
+        "unpriced_models": unpriced_models,
+    }
     doc = build_results_doc(aggs, results, provenance)
     (out / "results.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
     shutil.copy(cfg["pricing"], out / Path(cfg["pricing"]).name)
@@ -62,18 +67,68 @@ def cmd_report(run_dir: str) -> int:
 
 
 def cmd_verify(run_dir: str) -> int:
-    """Re-derive leaderboard quality from stored per-item pass/fail. No API calls."""
+    """Re-run the graders and re-price from the data inlined in results.json.
+
+    Genuine offline re-grading: no API/network calls. Re-derives both quality
+    (by re-running each item's grader against its published response_text) and
+    cost (by re-pricing chosen_model/usage against the pricing snapshot copied
+    into the run directory), then re-aggregates the leaderboard and diffs it
+    against the stored one.
+    """
     out = Path(run_dir)
     doc = json.loads((out / "results.json").read_text(encoding="utf-8"))
-    recomputed: dict[str, list[bool]] = {}
-    for it in doc["items"]:
-        recomputed.setdefault(it["policy"], []).append(bool(it["passed"]))
+    cost = CostModel(out / f"{doc['provenance']['snapshot_date']}.yaml")
+
+    recomputed_items: list[ItemResult] = []
     ok = True
-    for row in doc["leaderboard"]:
-        got = sum(recomputed[row["policy"]]) / len(recomputed[row["policy"]])
-        if abs(got - row["quality"]) > 1e-9:
-            print(f"MISMATCH {row['policy']}: stored {row['quality']} != recomputed {got}")
+    for it in doc["items"]:
+        task = TaskItem(
+            it["item_id"], it["dataset"], "", it["reference"], it["grader"], it["meta"],
+        )
+        passed = GRADERS[it["grader"]].score(it["response_text"], task).passed
+        provider, model_id = it["chosen_model"].split("/", 1)
+        model = ModelRef(provider, model_id)
+        usage = Usage(it["input_tokens"], it["output_tokens"])
+        try:
+            price = cost.price(model, usage)
+        except KeyError:
+            price = 0.0
+
+        if passed != bool(it["passed"]):
+            print(
+                f"MISMATCH {it['policy']}/{it['item_id']}: stored passed={it['passed']} "
+                f"!= recomputed passed={passed}"
+            )
             ok = False
+
+        recomputed_items.append(ItemResult(
+            policy=it["policy"],
+            dataset=it["dataset"],
+            item_id=it["item_id"],
+            grader=it["grader"],
+            reference=it["reference"],
+            meta=it["meta"],
+            response_text=it["response_text"],
+            chosen_model=it["chosen_model"],
+            passed=passed,
+            cost_usd=price,
+            input_tokens=it["input_tokens"],
+            output_tokens=it["output_tokens"],
+            latency_ms=it["latency_ms"],
+        ))
+
+    kinds = {row["policy"]: row["kind"] for row in doc["leaderboard"]}
+    recomputed_aggs = {a.policy: a for a in aggregate(recomputed_items, kinds)}
+
+    for row in doc["leaderboard"]:
+        got = recomputed_aggs[row["policy"]]
+        for field in ("quality", "total_cost_usd", "avg_cost_usd", "quality_per_usd"):
+            stored_val = row[field]
+            got_val = getattr(got, field)
+            if abs(got_val - stored_val) > 1e-9:
+                print(f"MISMATCH {row['policy']}.{field}: stored {stored_val} != recomputed {got_val}")
+                ok = False
+
     print("VERIFY OK" if ok else "VERIFY FAILED")
     return 0 if ok else 1
 

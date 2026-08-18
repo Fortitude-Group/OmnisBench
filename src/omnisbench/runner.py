@@ -16,6 +16,10 @@ class ItemResult:
     policy: str
     dataset: str
     item_id: str
+    grader: str
+    reference: object
+    meta: dict
+    response_text: str
     chosen_model: str
     passed: bool
     cost_usd: float
@@ -41,17 +45,26 @@ def run_matrix(
     providers: ProviderRegistry,
     cache: ResponseCache,
     cost: CostModel,
-) -> list[ItemResult]:
+) -> tuple[list[ItemResult], list[str]]:
     results: list[ItemResult] = []
+    unpriced_models: set[str] = set()
     for policy in policies:
         for item in items:
             outcome = policy.run(item, providers, cache)
             passed = GRADERS[item.grader].score(outcome.response_text, item).passed
-            price = cost.price(outcome.chosen_model, outcome.usage)
+            try:
+                price = cost.price(outcome.chosen_model, outcome.usage)
+            except KeyError:
+                price = 0.0
+                unpriced_models.add(outcome.chosen_model.key)
             results.append(ItemResult(
                 policy=policy.name,
                 dataset=item.dataset,
                 item_id=item.id,
+                grader=item.grader,
+                reference=item.reference,
+                meta=item.meta,
+                response_text=outcome.response_text,
                 chosen_model=outcome.chosen_model.key,
                 passed=passed,
                 cost_usd=price,
@@ -59,7 +72,9 @@ def run_matrix(
                 output_tokens=outcome.usage.output_tokens,
                 latency_ms=outcome.latency_ms,
             ))
-    return results
+    if unpriced_models:
+        print(f"WARNING: no pricing snapshot entry for models: {sorted(unpriced_models)} — costed as $0.00")
+    return results, sorted(unpriced_models)
 
 
 def aggregate(results: list[ItemResult], policy_kinds: dict[str, str]) -> list[PolicyAggregate]:
