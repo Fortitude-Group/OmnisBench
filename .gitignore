@@ -221,3 +221,8 @@ __marimo__/
 .superpowers/
 .claude-flow/
 .swarm/
+
+# OmnisBench run outputs — the per-run response cache is regenerable scratch data.
+# runs/<run>/results.json and report.html ARE tracked when a run is committed.
+# Note: data/*.jsonl (the pinned benchmark data) is intentionally NOT gitignored.
+runs/*/cache/

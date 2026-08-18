@@ -80,6 +80,7 @@ def cmd_verify(run_dir: str) -> int:
     cost = CostModel(out / f"{doc['provenance']['snapshot_date']}.yaml")
 
     recomputed_items: list[ItemResult] = []
+    unpriced_models: set[str] = set()
     ok = True
     for it in doc["items"]:
         task = TaskItem(
@@ -93,6 +94,7 @@ def cmd_verify(run_dir: str) -> int:
             price = cost.price(model, usage)
         except KeyError:
             price = 0.0
+            unpriced_models.add(model.key)
 
         if passed != bool(it["passed"]):
             print(
@@ -128,6 +130,9 @@ def cmd_verify(run_dir: str) -> int:
             if abs(got_val - stored_val) > 1e-9:
                 print(f"MISMATCH {row['policy']}.{field}: stored {stored_val} != recomputed {got_val}")
                 ok = False
+
+    if unpriced_models:
+        print(f"WARNING: unpriced models in verify: {sorted(unpriced_models)} — costed as $0.00")
 
     print("VERIFY OK" if ok else "VERIFY FAILED")
     return 0 if ok else 1

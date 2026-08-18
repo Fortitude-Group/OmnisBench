@@ -8,7 +8,7 @@ from omnisbench.providers.base import ProviderRegistry
 from omnisbench.providers.mock import MockProvider
 from omnisbench.types import ModelRef, TaskItem, Usage
 
-SNAP = Path("config/pricing/2026-08-18.yaml")
+SNAP = Path("tests/fixtures/pricing/2026-08-18.yaml")
 
 
 def _reg():

@@ -6,7 +6,7 @@ import pytest
 from omnisbench.cost import CostModel
 from omnisbench.types import ModelRef, Usage
 
-SNAP = Path("config/pricing/2026-08-18.yaml")
+SNAP = Path("tests/fixtures/pricing/2026-08-18.yaml")
 
 
 def test_price_computes_from_snapshot():
