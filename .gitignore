@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local agent orchestration / scratch state (not part of the repo)
+.superpowers/
+.claude-flow/
+.swarm/
