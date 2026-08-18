@@ -1,0 +1,2 @@
+{"id": "m1", "prompt": "What is the capital of France? Answer with one word.", "reference": "Paris", "grader": "exact_match", "meta": {}}
+{"id": "m2", "prompt": "Compute 6*7. Reply with the number only.", "reference": "42", "grader": "numeric_match", "meta": {}}
