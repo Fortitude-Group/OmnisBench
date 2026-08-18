@@ -1,0 +1,14 @@
+run_date: "2026-08-18"
+pricing: "config/pricing/2026-08-18.yaml"
+datasets:
+  - kind: jsonl
+    name: mini
+    path: tests/fixtures/mini_dataset.jsonl
+    seed: 0
+models:
+  cheap: { provider: openrouter, model_id: "deepseek/deepseek-chat" }
+  big:   { provider: anthropic,  model_id: "claude-big" }
+policies:
+  - { type: always_model, name: always_cheap, model: cheap }
+  - { type: always_model, name: always_big,   model: big }
+  - { type: oracle,       name: oracle,        pool: [cheap, big] }
