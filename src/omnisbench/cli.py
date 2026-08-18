@@ -23,7 +23,13 @@ from .types import ModelRef, TaskItem, Usage
 def build_providers(cfg: dict, env: dict) -> ProviderRegistry:
     reg = ProviderRegistry()
     for name, pc in cfg.get("providers", {}).items():
-        reg.register(OpenAICompatProvider(name, pc["base_url"], env.get(pc["api_key_env"], "")))
+        reg.register(OpenAICompatProvider(
+            name,
+            pc["base_url"],
+            env.get(pc["api_key_env"], ""),
+            token_param=pc.get("token_param", "max_tokens"),
+            send_sampling=pc.get("send_sampling", True),
+        ))
     return reg
 
 

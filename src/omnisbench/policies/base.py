@@ -8,7 +8,7 @@ from ..cache import ResponseCache
 from ..providers.base import ProviderRegistry
 from ..types import CompletionRequest, ModelRef, TaskItem, Usage
 
-MAX_TOKENS = 1024
+MAX_TOKENS = 2048
 
 
 @dataclass
