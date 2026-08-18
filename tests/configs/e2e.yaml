@@ -1,5 +1,5 @@
 run_date: "2026-08-18"
-pricing: "config/pricing/2026-08-18.yaml"
+pricing: "tests/fixtures/pricing/2026-08-18.yaml"
 datasets:
   - kind: jsonl
     name: mini

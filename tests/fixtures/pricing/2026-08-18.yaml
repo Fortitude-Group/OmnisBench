@@ -1,0 +1,13 @@
+# Test-only pricing fixture. Decoupled from config/pricing/2026-08-18.yaml (the real
+# production snapshot) so unit/e2e tests don't churn when production pricing changes.
+snapshot_date: "2026-08-18"
+models:
+  "openrouter/deepseek/deepseek-chat":
+    input_per_mtok: 0.14
+    output_per_mtok: 0.28
+  "openai/gpt-mid":
+    input_per_mtok: 2.50
+    output_per_mtok: 10.00
+  "anthropic/claude-big":
+    input_per_mtok: 15.00
+    output_per_mtok: 75.00

@@ -21,7 +21,11 @@ class CodeUnittestGrader:
 
     def score(self, response_text: str, item: TaskItem) -> GradeResult:
         candidate = extract_code(response_text)
-        program = f"{candidate}\n\n{item.reference}\n"
+        entry_point = item.meta.get("entry_point")
+        if entry_point:
+            program = f"{candidate}\n\n{item.reference}\n\ncheck({entry_point})\n"
+        else:
+            program = f"{candidate}\n\n{item.reference}\n"
         rc, output = run_python(program, self._timeout_s)
         passed = rc == 0
         return GradeResult(passed, 1.0 if passed else 0.0, {"returncode": rc, "output": output[-2000:]})
