@@ -226,3 +226,5 @@ __marimo__/
 # runs/<run>/results.json and report.html ARE tracked when a run is committed.
 # Note: data/*.jsonl (the pinned benchmark data) is intentionally NOT gitignored.
 runs/*/cache/
+configs/_dryrun.yaml
+runs/_dryrun/

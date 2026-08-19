@@ -27,7 +27,42 @@ above applies to the *response text already stored in* `results.json`) against
 already-published, static data. The same sandboxing caveat applies: verify a
 `results.json` you don't trust inside a container/VM too.
 
-_Headline results: added in Task 16._
+## Headline results (v0 — run 2026-08-19)
+
+Suite: **HumanEval (164)** + **GSM8K (200)** = 364 objectively auto-graded items.
+Candidate pool: `claude-opus-5`, `gpt-5`, `claude-haiku-4-5`, `gpt-5-nano`.
+Pricing snapshot: `config/pricing/2026-08-18.yaml`. Full artifacts in `runs/2026-08-19/`.
+
+| Policy | What it does | Task success | Cost / 1,000 requests |
+|---|---|---:|---:|
+| **oracle** | ideal per-request routing (cheapest model that *actually* solved each item) | **99.7%** | **$0.62** |
+| always_big | always `claude-opus-5` (frontier) | 99.2% | $6.25 |
+| random | uniform random over the pool | 96.2% | $4.01 |
+| always_cheap | always `gpt-5-nano` (floor) | 94.5% | $0.43 |
+
+**Ideal routing reaches 99.7% task success at ~90% lower cost than always using the frontier
+model** — and every figure is reproducible offline: `omnisbench verify runs/2026-08-19` re-runs
+the graders against the published responses and re-derives this table with **zero API calls**.
+
+Read these numbers honestly:
+
+- `oracle` is the **theoretical ceiling** of routing on this suite (chosen post-hoc, per item) —
+  not a shippable router. It is the frontier a real router aims at; the gap between a real router
+  and `oracle` is the real scorecard.
+- On this suite the cheapest model alone (`gpt-5-nano`) already scores **94.5%**, so routing's
+  realizable prize is recovering the last ~5 points of quality while staying ~10× cheaper than the
+  frontier — not a magic 40–70% headline.
+- Reasoning models were given a 4,096-token output budget; results reflect that budget.
+
+Reproduce (needs `OPENAI_API_KEY` + `ANTHROPIC_API_KEY`):
+
+```bash
+pip install -e .
+python scripts/prepare_datasets.py
+python -m omnisbench.cli run    --config configs/v0.yaml --run runs/mine
+python -m omnisbench.cli report --run runs/mine
+python -m omnisbench.cli verify --run runs/mine   # zero-API re-grade of the published results
+```
 
 ## `omnisbench verify`
 
