@@ -1,0 +1,56 @@
+# Example: adding a "fresh", contamination-resistant split alongside the v0 datasets.
+#
+# The idea, prompted by reader feedback: HumanEval and GSM8K are old enough that the
+# pool models have very likely trained on the graded examples, which can overstate the
+# absolute quality numbers and distort the per-model gap that routing exploits. A fresh
+# split filters a dated dataset down to problems published AFTER the models' training
+# cutoff, so memorisation cannot explain a pass.
+#
+# LiveCodeBench is a good source because every problem carries a release date. The
+# `min_date` filter below keeps only problems on/after that date, and `contamination:
+# fresh` puts them in their own leaderboard split. Run this config and the report shows
+# the "likely contaminated" and "fresh" boards side by side.
+#
+# STATUS: the loader plumbing (hf + min_date + date_key + contamination) is implemented
+# and tested. Grading LiveCodeBench needs its test-harness grader, which is the next
+# step (tracked in the README roadmap). Until that grader lands, treat this file as the
+# documented pattern rather than a runnable config.
+
+run_date: "2026-08-20"
+pricing: "config/pricing/2026-08-18.yaml"
+providers:
+  openai:    { base_url: "https://api.openai.com/v1",    api_key_env: "OPENAI_API_KEY",    token_param: "max_completion_tokens", send_sampling: false }
+  anthropic: { base_url: "https://api.anthropic.com/v1", api_key_env: "ANTHROPIC_API_KEY", token_param: "max_tokens",            send_sampling: false }
+datasets:
+  - { kind: jsonl, name: humaneval, path: "data/humaneval.jsonl", seed: 0,
+      contamination: likely_contaminated,
+      prompt_prefix: "Complete the following Python function. Return the COMPLETE function (signature + body) in a single ```python code block.\n\n" }
+  - { kind: jsonl, name: gsm8k, path: "data/gsm8k.jsonl", seed: 0,
+      contamination: likely_contaminated,
+      prompt_prefix: "Solve the problem. Show brief reasoning, then end with a final line: 'The answer is <number>.'\n\n" }
+  # Fresh split: only LiveCodeBench problems released on/after the cutoff below.
+  - kind: hf
+    name: livecodebench
+    revision: null
+    split: test
+    seed: 0
+    contamination: fresh
+    min_date: "2025-06-01"        # after the pool's training cutoff
+    date_key: date                # which meta field carries the release date
+    grader: livecodebench          # TODO: implement this grader (LiveCodeBench test harness)
+    mapping:
+      id: question_id
+      prompt: question_content
+      reference: public_test_cases
+      meta:
+        date: contest_date
+models:
+  opus5: { provider: anthropic, model_id: "claude-opus-5" }
+  gpt5:  { provider: openai,    model_id: "gpt-5" }
+  haiku: { provider: anthropic, model_id: "claude-haiku-4-5" }
+  nano:  { provider: openai,    model_id: "gpt-5-nano" }
+policies:
+  - { type: always_model, name: always_big,   model: opus5 }
+  - { type: always_model, name: always_cheap, model: nano }
+  - { type: random,       name: random,        pool: [opus5, gpt5, haiku, nano], seed: 0 }
+  - { type: oracle,       name: oracle,        pool: [opus5, gpt5, haiku, nano] }

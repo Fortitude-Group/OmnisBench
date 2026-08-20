@@ -20,3 +20,12 @@ class CostModel:
             usage.input_tokens / 1_000_000 * rates["input_per_mtok"]
             + usage.output_tokens / 1_000_000 * rates["output_per_mtok"]
         )
+
+    def output_rate(self, model_key: str) -> float | None:
+        """Output price per Mtok for a model key, or None if unpriced.
+
+        Used to identify the frontier (most expensive) model when computing
+        frontier escape rate, without needing a token count.
+        """
+        rates = self._models.get(model_key)
+        return rates["output_per_mtok"] if rates else None

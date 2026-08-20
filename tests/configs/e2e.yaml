@@ -5,6 +5,7 @@ datasets:
     name: mini
     path: tests/fixtures/mini_dataset.jsonl
     seed: 0
+    contamination: likely_contaminated
 models:
   cheap: { provider: openrouter, model_id: "deepseek/deepseek-chat" }
   big:   { provider: anthropic,  model_id: "claude-big" }

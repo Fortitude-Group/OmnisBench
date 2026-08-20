@@ -64,6 +64,37 @@ python -m omnisbench.cli report --run runs/mine
 python -m omnisbench.cli verify --run runs/mine   # zero-API re-grade of the published results
 ```
 
+## Contamination and splits
+
+HumanEval and GSM8K are old and widely republished, so the pool models have very likely seen the
+graded examples. That can lift the absolute quality numbers and distort the per-model gap that
+routing exploits, which was a fair point raised by readers. OmnisBench now reports it directly
+instead of hiding it.
+
+Each dataset carries a `contamination` tag in config (`likely_contaminated`, `fresh`, or the
+default `unknown`). A run then produces, on top of the overall leaderboard:
+
+- **A leaderboard per split.** The same policies are scored separately on the likely-contaminated
+  tasks and on any fresh tasks, so you can see whether the routing story holds where the models
+  could not have memorised the answer. The v0 suite is entirely `likely_contaminated`, and it says
+  so.
+- **Frontier escape rate per policy.** The fraction of a policy's requests that went to the
+  frontier (most expensive) model. It is 0% for the cheap floor, 100% for always-frontier, and for
+  a real router it is the escalation rate. This is the number that tends to drift once prompts get
+  messier than a benchmark.
+
+Both are re-derived from the stored items by `omnisbench verify`, so a faked split number or escape
+rate fails verification the same way a tampered answer does.
+
+### Adding a fresh, contamination-resistant split
+
+A fresh split filters a dated dataset down to problems published after the models' training cutoff.
+The loader supports this with `min_date` on any Hugging Face dataset that carries a release date
+(for example LiveCodeBench). See [`configs/livecodebench-fresh.example.yaml`](configs/livecodebench-fresh.example.yaml)
+for the pattern. The filtering plumbing is implemented and tested; wiring LiveCodeBench's own
+grader is the next step on the roadmap, and until then that file is the documented pattern rather
+than a runnable config.
+
 ## `omnisbench verify`
 
 `omnisbench verify` re-runs the graders against the published per-item

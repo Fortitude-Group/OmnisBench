@@ -46,11 +46,41 @@ def load_hf(spec: dict) -> list[TaskItem]:
     return _shuffle_limit(items, spec.get("limit"), spec.get("seed", 0))
 
 
+def apply_min_date(items: list[TaskItem], min_date: str, date_key: str = "date") -> list[TaskItem]:
+    """Keep only tasks dated on/after ``min_date`` (ISO ``YYYY-MM-DD`` string compare).
+
+    This is how a "fresh", contamination-resistant split is built: filter a dated
+    dataset (e.g. LiveCodeBench, whose problems carry a release date) down to
+    problems published after the model pool's training cutoff. A task with no date
+    under ``meta[date_key]`` is dropped, because an undated task cannot be shown to
+    be fresh.
+    """
+    kept: list[TaskItem] = []
+    for it in items:
+        d = it.meta.get(date_key)
+        if isinstance(d, str) and d >= min_date:
+            kept.append(it)
+    return kept
+
+
+def stamp_contamination(items: list[TaskItem], value: str) -> None:
+    """Tag every task with its contamination split, in place."""
+    for it in items:
+        it.meta["contamination"] = value
+
+
 def load_dataset_spec(spec: dict) -> list[TaskItem]:
     kind = spec["kind"]
     if kind == "jsonl":
-        return load_jsonl(Path(spec["path"]), spec["name"], spec.get("limit"), spec.get("seed", 0),
-                          spec.get("prompt_prefix", ""))
-    if kind == "hf":
-        return load_hf(spec)
-    raise ValueError(f"unknown dataset kind: {kind}")
+        items = load_jsonl(Path(spec["path"]), spec["name"], spec.get("limit"), spec.get("seed", 0),
+                           spec.get("prompt_prefix", ""))
+    elif kind == "hf":
+        items = load_hf(spec)
+    else:
+        raise ValueError(f"unknown dataset kind: {kind}")
+
+    min_date = spec.get("min_date")
+    if min_date:
+        items = apply_min_date(items, min_date, spec.get("date_key", "date"))
+    stamp_contamination(items, spec.get("contamination", "unknown"))
+    return items
