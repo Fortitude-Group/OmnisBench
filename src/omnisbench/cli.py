@@ -37,6 +37,8 @@ def build_providers(cfg: dict, env: dict) -> ProviderRegistry:
             env.get(pc["api_key_env"], ""),
             token_param=pc.get("token_param", "max_tokens"),
             send_sampling=pc.get("send_sampling", True),
+            timeout=float(pc.get("timeout", 600.0)),
+            max_retries=int(pc.get("max_retries", 8)),
         ))
     return reg
 
@@ -66,6 +68,7 @@ def cmd_run(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | 
     provenance = {
         "snapshot_date": cost.snapshot_date,
         "run_date": cfg.get("run_date", ""),
+        "max_tokens": int(cfg.get("max_tokens", 4096)),
         "unpriced_models": unpriced_models,
     }
     doc = build_results_doc(

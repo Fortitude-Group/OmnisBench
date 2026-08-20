@@ -26,5 +26,5 @@ class RoutingPolicy(Protocol):
     def run(self, item: TaskItem, providers: ProviderRegistry, cache: ResponseCache) -> PolicyOutcome: ...
 
 
-def request_for(item: TaskItem) -> CompletionRequest:
-    return CompletionRequest([{"role": "user", "content": item.prompt}], MAX_TOKENS)
+def request_for(item: TaskItem, max_tokens: int = MAX_TOKENS) -> CompletionRequest:
+    return CompletionRequest([{"role": "user", "content": item.prompt}], max_tokens)
