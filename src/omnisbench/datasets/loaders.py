@@ -76,6 +76,9 @@ def load_dataset_spec(spec: dict) -> list[TaskItem]:
                            spec.get("prompt_prefix", ""))
     elif kind == "hf":
         items = load_hf(spec)
+    elif kind == "livecodebench":
+        from .livecodebench import load_livecodebench
+        items = load_livecodebench(spec)
     else:
         raise ValueError(f"unknown dataset kind: {kind}")
 

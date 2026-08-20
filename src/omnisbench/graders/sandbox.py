@@ -28,3 +28,29 @@ def run_python(code: str, timeout_s: float) -> tuple[int, str]:
             return proc.returncode, (proc.stdout + proc.stderr)
         except subprocess.TimeoutExpired:
             return 124, "TIMEOUT"
+
+
+def run_python_io(code: str, stdin: str, timeout_s: float) -> tuple[int, str, str]:
+    """Run untrusted Python feeding ``stdin``, returning (returncode, stdout, stderr).
+
+    Same isolation as ``run_python`` (fresh ``-I`` interpreter, throwaway CWD, hard
+    timeout, no shell), but stdout and stderr are kept separate so a grader can compare
+    program output against an expected answer. Used for stdin/stdout problems such as
+    LiveCodeBench.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "prog.py"
+        script.write_text(code, encoding="utf-8")
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-I", str(script)],
+                cwd=tmp,
+                input=stdin,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+                check=False,
+            )
+            return proc.returncode, proc.stdout, proc.stderr
+        except subprocess.TimeoutExpired:
+            return 124, "", "TIMEOUT"
