@@ -29,6 +29,14 @@ def test_run_report_verify_end_to_end(tmp_path):
     q = {r["policy"]: r["quality"] for r in doc["leaderboard"]}
     assert q["oracle"] >= q["always_cheap"]
 
+    # contamination split + frontier escape metrics round-trip through results.json
+    assert doc["frontier_model"] == "anthropic/claude-big"
+    assert set(doc["contamination_counts"]) == {"likely_contaminated"}
+    assert "likely_contaminated" in doc["splits"]
+    esc = {r["policy"]: r["escape_rate"] for r in doc["leaderboard"]}
+    assert esc["always_big"] == 1.0
+    assert esc["always_cheap"] == 0.0
+
     cli.cmd_report(str(run_dir))
     assert (run_dir / "report.html").exists()
 
@@ -57,6 +65,21 @@ def test_verify_catches_tampered_response(tmp_path):
 
     target["response_text"] = "definitely not paris"
     # passed flag and leaderboard are deliberately left stale/untouched.
+    results_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+
+    assert cli.cmd_verify(str(run_dir)) != 0
+
+
+def test_verify_catches_tampered_split(tmp_path):
+    # The per-contamination split leaderboard is re-derived from items, so faking a
+    # split number without touching the underlying items must fail verification.
+    run_dir = tmp_path / "run"
+    cli.cmd_run("tests/configs/e2e.yaml", str(run_dir), providers_override=_providers())
+    results_path = run_dir / "results.json"
+    doc = json.loads(results_path.read_text())
+
+    rows = doc["splits"]["likely_contaminated"]
+    rows[0]["quality"] = rows[0]["quality"] + 0.5  # a number the items do not support
     results_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
 
     assert cli.cmd_verify(str(run_dir)) != 0

@@ -16,7 +16,15 @@ from .graders.code_unittest import GRADERS
 from .providers.base import ProviderRegistry
 from .providers.openai_compat import OpenAICompatProvider
 from .report.html import render_report
-from .runner import ItemResult, aggregate, build_results_doc, run_matrix
+from .runner import (
+    ItemResult,
+    aggregate,
+    build_results_doc,
+    contamination_counts,
+    frontier_model_key,
+    run_matrix,
+    split_leaderboards,
+)
 from .types import ModelRef, TaskItem, Usage
 
 
@@ -51,13 +59,19 @@ def cmd_run(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | 
     out.mkdir(parents=True, exist_ok=True)
     cache = ResponseCache(out / "cache")
     results, unpriced_models = run_matrix(items, policies, providers, cache, cost)
-    aggs = aggregate(results, kinds)
+    frontier = frontier_model_key(results, cost)
+    aggs = aggregate(results, kinds, frontier)
+    splits = split_leaderboards(results, kinds, frontier)
+    counts = contamination_counts(results)
     provenance = {
         "snapshot_date": cost.snapshot_date,
         "run_date": cfg.get("run_date", ""),
         "unpriced_models": unpriced_models,
     }
-    doc = build_results_doc(aggs, results, provenance)
+    doc = build_results_doc(
+        aggs, results, provenance,
+        frontier_model=frontier, splits=splits, contamination=counts,
+    )
     (out / "results.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
     shutil.copy(cfg["pricing"], out / Path(cfg["pricing"]).name)
     print(f"Wrote {out / 'results.json'} — {len(results)} item-results, {len(aggs)} policies")
@@ -126,16 +140,36 @@ def cmd_verify(run_dir: str) -> int:
         ))
 
     kinds = {row["policy"]: row["kind"] for row in doc["leaderboard"]}
-    recomputed_aggs = {a.policy: a for a in aggregate(recomputed_items, kinds)}
+    frontier = frontier_model_key(recomputed_items, cost)
+    if doc.get("frontier_model") is not None and frontier != doc["frontier_model"]:
+        print(f"MISMATCH frontier_model: stored {doc['frontier_model']} != recomputed {frontier}")
+        ok = False
 
-    for row in doc["leaderboard"]:
-        got = recomputed_aggs[row["policy"]]
-        for field in ("quality", "total_cost_usd", "avg_cost_usd", "quality_per_usd"):
-            stored_val = row[field]
-            got_val = getattr(got, field)
-            if abs(got_val - stored_val) > 1e-9:
-                print(f"MISMATCH {row['policy']}.{field}: stored {stored_val} != recomputed {got_val}")
+    def _diff_board(stored_rows: list[dict], recomputed: list, label: str) -> None:
+        nonlocal ok
+        got = {a.policy: a for a in recomputed}
+        for row in stored_rows:
+            g = got.get(row["policy"])
+            if g is None:
+                print(f"MISMATCH {label}: policy {row['policy']} missing on re-derivation")
                 ok = False
+                continue
+            fields = ["quality", "total_cost_usd", "avg_cost_usd", "quality_per_usd"]
+            if "escape_rate" in row:  # older runs predate this metric
+                fields.append("escape_rate")
+            for field in fields:
+                if abs(getattr(g, field) - row[field]) > 1e-9:
+                    print(f"MISMATCH {label} {row['policy']}.{field}: "
+                          f"stored {row[field]} != recomputed {getattr(g, field)}")
+                    ok = False
+
+    _diff_board(doc["leaderboard"], aggregate(recomputed_items, kinds, frontier), "leaderboard")
+
+    stored_splits = doc.get("splits") or {}
+    if stored_splits:
+        recomputed_splits = split_leaderboards(recomputed_items, kinds, frontier)
+        for split, rows in stored_splits.items():
+            _diff_board(rows, recomputed_splits.get(split, []), f"split[{split}]")
 
     if unpriced_models:
         print(f"WARNING: unpriced models in verify: {sorted(unpriced_models)} — costed as $0.00")
