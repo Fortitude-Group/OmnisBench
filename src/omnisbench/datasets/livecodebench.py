@@ -84,20 +84,48 @@ def map_row(row: dict, prompt_prefix: str = "") -> TaskItem | None:
     )
 
 
-def load_livecodebench(spec: dict) -> list[TaskItem]:
-    from datasets import load_dataset
+_DEFAULT_FILES = [f"test{n}.jsonl" if n else "test.jsonl" for n in ("", 2, 3, 4, 5, 6)]
 
-    from .loaders import _shuffle_limit  # deferred to avoid an import cycle
 
-    ds = load_dataset(
-        spec.get("hf_name", "livecodebench/code_generation_lite"),
-        revision=spec.get("revision"),
-        split=spec.get("split", "test"),
-        trust_remote_code=spec.get("trust_remote_code", False),
-    )
+def select_items(rows: list[dict], spec: dict) -> list[TaskItem]:
+    """Map raw LiveCodeBench rows to TaskItems, then filter by date, then cap.
+
+    Order matters: ``min_date`` must be applied BEFORE ``limit``, otherwise the cap
+    samples from all dates first and leaves only a handful of fresh problems. Kept as
+    a pure function so the ordering is unit-testable without a network download.
+    """
+    from .loaders import _shuffle_limit, apply_min_date  # deferred to avoid a cycle
+
     items: list[TaskItem] = []
-    for row in ds:
-        item = map_row(dict(row), spec.get("prompt_prefix", ""))
+    for row in rows:
+        item = map_row(row, spec.get("prompt_prefix", ""))
         if item is not None:
             items.append(item)
+    min_date = spec.get("min_date")
+    if min_date:
+        items = apply_min_date(items, min_date, spec.get("date_key", "date"))
     return _shuffle_limit(items, spec.get("limit"), spec.get("seed", 0))
+
+
+def load_livecodebench(spec: dict) -> list[TaskItem]:
+    """Load LiveCodeBench by downloading its raw JSONL release files from the HF hub.
+
+    The published dataset is script-based, which recent `datasets` refuses to run, so
+    we pull the ``testN.jsonl`` files directly with ``huggingface_hub`` and dedupe
+    problems by id. The contamination tag is stamped by the caller (``load_dataset_spec``).
+    """
+    from huggingface_hub import hf_hub_download
+
+    repo = spec.get("hf_name", "livecodebench/code_generation_lite")
+    files = spec.get("hf_files", _DEFAULT_FILES)
+    by_id: dict[object, dict] = {}
+    for fname in files:
+        path = hf_hub_download(repo, fname, repo_type="dataset", revision=spec.get("revision"))
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                by_id[row.get("question_id", len(by_id))] = row
+    return select_items(list(by_id.values()), spec)
