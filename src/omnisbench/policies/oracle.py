@@ -3,23 +3,24 @@ from __future__ import annotations
 
 from ..cache import ResponseCache
 from ..cost import CostModel
-from ..graders.code_unittest import GRADERS  # importing here ensures code_unittest is registered
+from ..graders import GRADERS  # importing registers every grader
 from ..providers.base import ProviderRegistry
 from ..types import ModelRef, TaskItem, Usage
-from .base import PolicyOutcome, request_for
+from .base import MAX_TOKENS, PolicyOutcome, request_for
 
 
 class OraclePolicy:
     kind = "transparent"
 
-    def __init__(self, name: str, pool: list[ModelRef], cost: CostModel):
+    def __init__(self, name: str, pool: list[ModelRef], cost: CostModel, max_tokens: int = MAX_TOKENS):
         self.name = name
         self._pool = pool
         self._cost = cost
+        self._max_tokens = max_tokens
 
     def run(self, item: TaskItem, providers: ProviderRegistry, cache: ResponseCache) -> PolicyOutcome:
         grader = GRADERS[item.grader]
-        req = request_for(item)
+        req = request_for(item, self._max_tokens)
         scored: list[tuple[float, bool, ModelRef, str, Usage, float]] = []
         for model in self._pool:
             resp = providers.complete_cached(req, model, cache)

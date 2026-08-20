@@ -1,6 +1,9 @@
 # Capped run to produce a first fresh-vs-contaminated split.
 # Small samples on purpose: enough for signal, cheap enough for a first paid run.
+# max_tokens is the per-request output budget. 4096 truncates reasoning models on hard
+# problems (they exhaust it mid-reasoning and emit no code), so hard suites need headroom.
 run_date: "2026-08-20"
+max_tokens: 16384
 pricing: "config/pricing/2026-08-18.yaml"
 providers:
   openai:    { base_url: "https://api.openai.com/v1",    api_key_env: "OPENAI_API_KEY",    token_param: "max_completion_tokens", send_sampling: false }
@@ -12,7 +15,7 @@ datasets:
   - { kind: jsonl, name: gsm8k, path: "data/gsm8k.jsonl", seed: 0, limit: 10,
       contamination: likely_contaminated,
       prompt_prefix: "Solve the problem. Show brief reasoning, then end with a final line: 'The answer is <number>.'\n\n" }
-  - { kind: livecodebench, name: livecodebench, seed: 0, limit: 30,
+  - { kind: livecodebench, name: livecodebench, seed: 0, limit: 15,
       contamination: fresh, min_date: "2025-01-01" }
 models:
   opus5: { provider: anthropic, model_id: "claude-opus-5" }
