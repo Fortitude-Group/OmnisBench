@@ -11,10 +11,11 @@
 # fresh` puts them in their own leaderboard split. Run this config and the report shows
 # the "likely contaminated" and "fresh" boards side by side.
 #
-# STATUS: the loader plumbing (hf + min_date + date_key + contamination) is implemented
-# and tested. Grading LiveCodeBench needs its test-harness grader, which is the next
-# step (tracked in the README roadmap). Until that grader lands, treat this file as the
-# documented pattern rather than a runnable config.
+# STATUS: runnable. The loader (kind: livecodebench), the min_date filter, and the
+# `livecodebench` stdin grader are all implemented and tested. It needs the `datasets`
+# package (`pip install datasets`) to pull LiveCodeBench, and real provider keys plus a
+# paid run to produce numbers. Only stdin/stdout problems are graded today; functional
+# (implement-a-named-function) problems are skipped and are the next step.
 
 run_date: "2026-08-20"
 pricing: "config/pricing/2026-08-18.yaml"
@@ -29,21 +30,16 @@ datasets:
       contamination: likely_contaminated,
       prompt_prefix: "Solve the problem. Show brief reasoning, then end with a final line: 'The answer is <number>.'\n\n" }
   # Fresh split: only LiveCodeBench problems released on/after the cutoff below.
-  - kind: hf
+  # The livecodebench loader parses the test cases, keeps stdin/stdout problems, and
+  # stamps each task's release date so min_date can filter to fresh ones.
+  - kind: livecodebench
     name: livecodebench
-    revision: null
+    hf_name: "livecodebench/code_generation_lite"
     split: test
     seed: 0
     contamination: fresh
-    min_date: "2025-06-01"        # after the pool's training cutoff
-    date_key: date                # which meta field carries the release date
-    grader: livecodebench          # TODO: implement this grader (LiveCodeBench test harness)
-    mapping:
-      id: question_id
-      prompt: question_content
-      reference: public_test_cases
-      meta:
-        date: contest_date
+    min_date: "2025-06-01"        # after the pool's training cutoff; keeps only fresh problems
+    limit: 200                     # optional: cap the fresh set for a cheaper first run
 models:
   opus5: { provider: anthropic, model_id: "claude-opus-5" }
   gpt5:  { provider: openai,    model_id: "gpt-5" }

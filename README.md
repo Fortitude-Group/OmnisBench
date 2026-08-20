@@ -89,11 +89,14 @@ rate fails verification the same way a tampered answer does.
 ### Adding a fresh, contamination-resistant split
 
 A fresh split filters a dated dataset down to problems published after the models' training cutoff.
-The loader supports this with `min_date` on any Hugging Face dataset that carries a release date
-(for example LiveCodeBench). See [`configs/livecodebench-fresh.example.yaml`](configs/livecodebench-fresh.example.yaml)
-for the pattern. The filtering plumbing is implemented and tested; wiring LiveCodeBench's own
-grader is the next step on the roadmap, and until then that file is the documented pattern rather
-than a runnable config.
+The `livecodebench` loader (`kind: livecodebench`) pulls LiveCodeBench, keeps the stdin/stdout
+problems, stamps each task's release date, and `min_date` filters to the fresh ones. The
+`livecodebench` grader runs each solution against the problem's test cases in the same sandbox as
+the HumanEval grader, and `omnisbench verify` re-grades them offline. See
+[`configs/livecodebench-fresh.example.yaml`](configs/livecodebench-fresh.example.yaml) for a
+runnable config; it needs `pip install datasets`, provider keys, and a paid run to produce numbers.
+Next on the roadmap: LiveCodeBench functional problems (implement-a-named-function), which are
+skipped for now, and reading its compressed private test cases.
 
 ## `omnisbench verify`
 

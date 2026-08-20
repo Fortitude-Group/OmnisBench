@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 
 from .cache import ResponseCache
 from .cost import CostModel
-from .graders.code_unittest import GRADERS
+from .graders import GRADERS
 from .policies.base import RoutingPolicy
 from .providers.base import ProviderRegistry
 from .types import TaskItem

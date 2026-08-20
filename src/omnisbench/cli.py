@@ -12,7 +12,7 @@ from .cache import ResponseCache
 from .config import build_policies, load_config
 from .cost import CostModel
 from .datasets.loaders import load_dataset_spec
-from .graders.code_unittest import GRADERS
+from .graders import GRADERS
 from .providers.base import ProviderRegistry
 from .providers.openai_compat import OpenAICompatProvider
 from .report.html import render_report
