@@ -27,39 +27,53 @@ above applies to the *response text already stored in* `results.json`) against
 already-published, static data. The same sandboxing caveat applies: verify a
 `results.json` you don't trust inside a container/VM too.
 
-## Headline results (v0 — run 2026-08-19)
+## Headline results (run 2026-08-20)
 
-Suite: **HumanEval (164)** + **GSM8K (200)** = 364 objectively auto-graded items.
-Candidate pool: `claude-opus-5`, `gpt-5`, `claude-haiku-4-5`, `gpt-5-nano`.
-Pricing snapshot: `config/pricing/2026-08-18.yaml`. Full artifacts in `runs/2026-08-19/`.
+The number that matters is the **fresh split**: LiveCodeBench problems published after the models'
+training cutoff, so none of them can be sitting in the training data. That is where routing has to
+earn its keep.
 
-| Policy | What it does | Task success | Cost / 1,000 requests |
+Fresh split, 15 tasks. Pool: `claude-opus-5`, `gpt-5`, `claude-haiku-4-5`, `gpt-5-nano`. Pricing
+snapshot `config/pricing/2026-08-18.yaml`, output budget 16,384 tokens. Full artifacts in
+`runs/fresh-16k-2026-08-20/`.
+
+| Policy | What it does | Task success | Cost / 1,000 |
 |---|---|---:|---:|
-| **oracle** | ideal per-request routing (cheapest model that *actually* solved each item) | **99.7%** | **$0.62** |
-| always_big | always `claude-opus-5` (frontier) | 99.2% | $6.25 |
-| random | uniform random over the pool | 96.2% | $4.01 |
-| always_cheap | always `gpt-5-nano` (floor) | 94.5% | $0.43 |
+| **oracle** | ideal per-request routing (cheapest model that actually solved each item) | **93.3%** | **$53.30** |
+| always_big | always `claude-opus-5` (frontier) | 86.7% | $138.10 |
+| random | uniform random over the pool | 73.3% | $59.00 |
+| always_cheap | always `gpt-5-nano` (floor) | 60.0% | $4.10 |
 
-**Ideal routing reaches 99.7% task success at ~90% lower cost than always using the frontier
-model** — and every figure is reproducible offline: `omnisbench verify runs/2026-08-19` re-runs
-the graders against the published responses and re-derives this table with **zero API calls**.
+On problems the models cannot have memorised, ideal routing hits **93.3%**, above the frontier
+model's 86.7%, at roughly **60% lower cost** than always calling it. No single model solves every
+fresh problem, so routing to the best model per item beats any fixed choice on quality and price at
+once. That is the prize, and it only shows up once the data is clean.
+
+For contrast, the same policies on the **likely-contaminated** split (HumanEval + GSM8K, 20 tasks)
+all land near **100%** quality: the models have seen those problems, every policy looks equally
+good, and routing appears to save nothing. That flatness is an artefact of contamination. An earlier
+contaminated-only run reported exactly that as a headline (oracle at 99.7%), which was misleading,
+so the fresh split now leads.
 
 Read these numbers honestly:
 
-- `oracle` is the **theoretical ceiling** of routing on this suite (chosen post-hoc, per item) —
-  not a shippable router. It is the frontier a real router aims at; the gap between a real router
-  and `oracle` is the real scorecard.
-- On this suite the cheapest model alone (`gpt-5-nano`) already scores **94.5%**, so routing's
-  realizable prize is recovering the last ~5 points of quality while staying ~10× cheaper than the
-  frontier — not a magic 40–70% headline.
-- Reasoning models were given a 4,096-token output budget; results reflect that budget.
+- **The sample is small.** 15 fresh tasks is a pilot that shows the method and the direction, not a
+  final verdict. Widening the fresh set is the roadmap.
+- `oracle` is the **theoretical ceiling** of routing, chosen after the fact per item, not a
+  shippable router. The gap between a real router and `oracle` is the real scorecard.
+- Every figure re-derives offline: `omnisbench verify runs/fresh-16k-2026-08-20` re-runs the graders
+  against the published responses and rebuilds this table with **zero API calls**.
 
-Reproduce (needs `OPENAI_API_KEY` + `ANTHROPIC_API_KEY`):
+The larger contaminated-only baseline (HumanEval 164 + GSM8K 200) still lives in `runs/2026-08-19/`
+for reference; its numbers are pinned near 100% for the reason above.
+
+Reproduce (needs `OPENAI_API_KEY` + `ANTHROPIC_API_KEY`, `pip install datasets` for LiveCodeBench,
+and a container per the warning above):
 
 ```bash
 pip install -e .
 python scripts/prepare_datasets.py
-python -m omnisbench.cli run    --config configs/v0.yaml --run runs/mine
+python -m omnisbench.cli run    --config configs/fresh-run.yaml --run runs/mine
 python -m omnisbench.cli report --run runs/mine
 python -m omnisbench.cli verify --run runs/mine   # zero-API re-grade of the published results
 ```
@@ -76,8 +90,9 @@ default `unknown`). A run then produces, on top of the overall leaderboard:
 
 - **A leaderboard per split.** The same policies are scored separately on the likely-contaminated
   tasks and on any fresh tasks, so you can see whether the routing story holds where the models
-  could not have memorised the answer. The v0 suite is entirely `likely_contaminated`, and it says
-  so.
+  could not have memorised the answer. The headline run (`runs/fresh-16k-2026-08-20`) carries both,
+  15 fresh and 20 likely-contaminated; the original `configs/v0.yaml` suite is entirely
+  `likely_contaminated`, and its board says so.
 - **Frontier escape rate per policy.** The fraction of a policy's requests that went to the
   frontier (most expensive) model. It is 0% for the cheap floor, 100% for always-frontier, and for
   a real router it is the escalation rate. This is the number that tends to drift once prompts get
@@ -95,6 +110,7 @@ problems, stamps each task's release date, and `min_date` filters to the fresh o
 the HumanEval grader, and `omnisbench verify` re-grades them offline. See
 [`configs/livecodebench-fresh.example.yaml`](configs/livecodebench-fresh.example.yaml) for a
 runnable config; it needs `pip install datasets`, provider keys, and a paid run to produce numbers.
+The headline run in `runs/fresh-16k-2026-08-20/` is one such run, built from `configs/fresh-run.yaml`.
 Next on the roadmap: LiveCodeBench functional problems (implement-a-named-function), which are
 skipped for now, and reading its compressed private test cases.
 
