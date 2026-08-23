@@ -130,8 +130,8 @@ def _svg(doc: dict) -> str:
     def sy(q: float) -> float:
         return H - bottom - (q - q0) / (q1 - q0) * (H - top - bottom)
 
-    parts = [f"<svg viewBox='0 0 {W} {H}' width='{W}' height='{H}' role='img' "
-             f"aria-label='task quality versus cost per task, blue marks the efficiency frontier'>"]
+    parts = [(f"<svg viewBox='0 0 {W} {H}' width='{W}' height='{H}' role='img' "
+              f"aria-label='task quality versus cost per task, blue marks the efficiency frontier'>")]
     # axes
     parts.append(f"<line class='axis' x1='{left}' y1='{top}' x2='{left}' y2='{H - bottom}'/>")
     parts.append(f"<line class='axis' x1='{left}' y1='{H - bottom}' x2='{W - right}' y2='{H - bottom}'/>")

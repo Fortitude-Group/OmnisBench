@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import date
 
 from .cache import ResponseCache
 from .cost import CostModel
@@ -167,6 +168,55 @@ def contamination_counts(results: list[ItemResult]) -> dict[str, int]:
     return {split: len(tasks) for split, tasks in sorted(seen.items())}
 
 
+def _days_between(a: str, b: str) -> int | None:
+    try:
+        return (date.fromisoformat(b) - date.fromisoformat(a)).days
+    except ValueError:
+        return None
+
+
+def date_margins(
+    results: list[ItemResult],
+    cutoff: str | None = None,
+    date_key: str = "date",
+) -> dict[str, dict]:
+    """Release-date spread per contamination split, taken from the task metas.
+
+    Publishing the dates lets a reader judge how fresh a "fresh" split really is,
+    instead of trusting a binary tag. Given a ``cutoff`` (the pool's stated training
+    cutoff), it also reports how many days past that cutoff the split sits. Splits with
+    no dated tasks (HumanEval, GSM8K) are omitted.
+    """
+    seen: dict[str, set[tuple[str, str]]] = {}
+    dates: dict[str, list[str]] = {}
+    for r in results:
+        raw = r.meta.get(date_key)
+        if not (isinstance(raw, str) and raw):
+            continue
+        split = contamination_of(r)
+        task = (r.dataset, r.item_id)
+        bucket = seen.setdefault(split, set())
+        if task in bucket:
+            continue
+        bucket.add(task)
+        dates.setdefault(split, []).append(raw[:10])
+
+    out: dict[str, dict] = {}
+    for split, ds in sorted(dates.items()):
+        ds.sort()
+        entry: dict = {"n_dated": len(ds), "min": ds[0], "median": ds[len(ds) // 2], "max": ds[-1]}
+        if cutoff:
+            entry["cutoff"] = cutoff
+            lo = _days_between(cutoff, ds[0])
+            mid = _days_between(cutoff, ds[len(ds) // 2])
+            if lo is not None:
+                entry["min_days_past_cutoff"] = lo
+            if mid is not None:
+                entry["median_days_past_cutoff"] = mid
+        out[split] = entry
+    return out
+
+
 def build_results_doc(
     aggregates: list[PolicyAggregate],
     items: list[ItemResult],
@@ -175,11 +225,13 @@ def build_results_doc(
     frontier_model: str | None = None,
     splits: dict[str, list[PolicyAggregate]] | None = None,
     contamination: dict[str, int] | None = None,
+    margins: dict[str, dict] | None = None,
 ) -> dict:
     doc: dict = {
         "provenance": provenance,
         "frontier_model": frontier_model,
         "contamination_counts": contamination or {},
+        "date_margins": margins or {},
         "leaderboard": [asdict(a) for a in aggregates],
         "splits": {
             split: [asdict(a) for a in aggs] for split, aggs in (splits or {}).items()

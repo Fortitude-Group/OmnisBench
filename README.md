@@ -97,9 +97,14 @@ default `unknown`). A run then produces, on top of the overall leaderboard:
   frontier (most expensive) model. It is 0% for the cheap floor, 100% for always-frontier, and for
   a real router it is the escalation rate. This is the number that tends to drift once prompts get
   messier than a benchmark.
+- **Release-date margins per split.** For any split whose tasks carry a release date (the
+  LiveCodeBench fresh set does), `results.json` records the date spread under `date_margins`: the
+  count, min, median and max date. That lets a reader judge how fresh the split is from the actual
+  dates, not a bare tag. Set `training_cutoff` in the config to also report how many days past it the
+  split sits. A binary contaminated-or-clean call hides how close to the line the pool runs.
 
-Both are re-derived from the stored items by `omnisbench verify`, so a faked split number or escape
-rate fails verification the same way a tampered answer does.
+All three are re-derived from the stored items by `omnisbench verify`, so a faked split number,
+escape rate or date margin fails verification the same way a tampered answer does.
 
 ### Adding a fresh, contamination-resistant split
 

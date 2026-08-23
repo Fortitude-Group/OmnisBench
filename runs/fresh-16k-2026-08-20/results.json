@@ -3,12 +3,21 @@
     "snapshot_date": "2026-08-18",
     "run_date": "2026-08-20",
     "max_tokens": 16384,
-    "unpriced_models": []
+    "unpriced_models": [],
+    "training_cutoff": null
   },
   "frontier_model": "anthropic/claude-opus-5",
   "contamination_counts": {
     "fresh": 15,
     "likely_contaminated": 20
+  },
+  "date_margins": {
+    "fresh": {
+      "n_dated": 15,
+      "min": "2025-01-04",
+      "median": "2025-02-22",
+      "max": "2025-04-06"
+    }
   },
   "leaderboard": [
     {

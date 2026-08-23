@@ -21,6 +21,7 @@ from .runner import (
     aggregate,
     build_results_doc,
     contamination_counts,
+    date_margins,
     frontier_model_key,
     run_matrix,
     split_leaderboards,
@@ -65,15 +66,18 @@ def cmd_run(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | 
     aggs = aggregate(results, kinds, frontier)
     splits = split_leaderboards(results, kinds, frontier)
     counts = contamination_counts(results)
+    cutoff = cfg.get("training_cutoff")
+    margins = date_margins(results, cutoff)
     provenance = {
         "snapshot_date": cost.snapshot_date,
         "run_date": cfg.get("run_date", ""),
         "max_tokens": int(cfg.get("max_tokens", 4096)),
+        "training_cutoff": cutoff,
         "unpriced_models": unpriced_models,
     }
     doc = build_results_doc(
         aggs, results, provenance,
-        frontier_model=frontier, splits=splits, contamination=counts,
+        frontier_model=frontier, splits=splits, contamination=counts, margins=margins,
     )
     (out / "results.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
     shutil.copy(cfg["pricing"], out / Path(cfg["pricing"]).name)
@@ -173,6 +177,15 @@ def cmd_verify(run_dir: str) -> int:
         recomputed_splits = split_leaderboards(recomputed_items, kinds, frontier)
         for split, rows in stored_splits.items():
             _diff_board(rows, recomputed_splits.get(split, []), f"split[{split}]")
+
+    stored_margins = doc.get("date_margins") or {}
+    if stored_margins:
+        recomputed_margins = date_margins(recomputed_items, doc["provenance"].get("training_cutoff"))
+        for split, stored in stored_margins.items():
+            if recomputed_margins.get(split) != stored:
+                print(f"MISMATCH date_margins[{split}]: stored {stored} "
+                      f"!= recomputed {recomputed_margins.get(split)}")
+                ok = False
 
     if unpriced_models:
         print(f"WARNING: unpriced models in verify: {sorted(unpriced_models)} — costed as $0.00")

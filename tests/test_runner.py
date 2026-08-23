@@ -11,6 +11,7 @@ from omnisbench.runner import (
     aggregate,
     build_results_doc,
     contamination_counts,
+    date_margins,
     frontier_model_key,
     run_matrix,
     split_leaderboards,
@@ -130,6 +131,38 @@ def test_contamination_counts_dedup_tasks_across_policies():
         _ir("router", "t2", CHEAP, contamination="likely_contaminated"),
     ]
     assert contamination_counts(results) == {"fresh": 1, "likely_contaminated": 1}
+
+
+def _dated(policy, item_id, contamination, d):
+    r = _ir(policy, item_id, BIG, contamination)
+    r.meta["date"] = d
+    return r
+
+
+def test_date_margins_spread_and_dedup_by_task():
+    results = [
+        _dated("oracle", "f1", "fresh", "2025-01-04"),
+        _dated("always_big", "f1", "fresh", "2025-01-04"),  # same task, other policy
+        _dated("oracle", "f2", "fresh", "2025-04-06"),
+        _dated("oracle", "f3", "fresh", "2025-02-22"),
+    ]
+    m = date_margins(results)
+    assert m["fresh"]["n_dated"] == 3  # f1 counted once
+    assert m["fresh"]["min"] == "2025-01-04"
+    assert m["fresh"]["median"] == "2025-02-22"
+    assert m["fresh"]["max"] == "2025-04-06"
+    assert "cutoff" not in m["fresh"]
+
+
+def test_date_margins_with_cutoff_reports_days_past():
+    m = date_margins([_dated("oracle", "f1", "fresh", "2025-03-01")], cutoff="2025-01-01")
+    assert m["fresh"]["cutoff"] == "2025-01-01"
+    assert m["fresh"]["median_days_past_cutoff"] == 59  # Jan(31) + Feb(28)
+
+
+def test_date_margins_omits_undated_splits():
+    # HumanEval/GSM8K carry no date, so no margin is emitted for them.
+    assert date_margins([_ir("oracle", "c1", CHEAP, "likely_contaminated")]) == {}
 
 
 def test_build_results_doc_carries_splits_and_frontier():
