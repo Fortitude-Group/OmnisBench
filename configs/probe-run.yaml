@@ -15,6 +15,9 @@ models:
   haiku: { provider: anthropic, model_id: "claude-haiku-4-5" }
   nano:  { provider: openai,    model_id: "gpt-5-nano" }
 probe:
-  # The rewording model. Offline and one-time; its output (the perturbed prompts) is published.
-  generator: { provider: anthropic, model_id: "claude-opus-5" }
+  # The rewording model sits OUTSIDE the scored pool, so no scored model rewrites its own
+  # problems. Its output (the perturbed prompts) is published for inspection.
+  generator: { provider: anthropic, model_id: "claude-sonnet-5" }
   gen_max_tokens: 3072
+  # Drop any rewording no model can solve (likely broken) and any problem no model solved.
+  validate: true

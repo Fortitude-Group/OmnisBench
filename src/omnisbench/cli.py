@@ -14,7 +14,12 @@ from .cost import CostModel
 from .datasets.loaders import load_dataset_spec
 from .graders import GRADERS
 from .policies.baselines import AlwaysModelPolicy
-from .probe import generate_perturbations, perturbation_gaps, tag_originals
+from .probe import (
+    generate_perturbations,
+    perturbation_gaps,
+    perturbation_validation,
+    tag_originals,
+)
 from .providers.base import ProviderRegistry
 from .providers.openai_compat import OpenAICompatProvider
 from .report.html import render_report
@@ -119,21 +124,28 @@ def cmd_probe(cfg_path: str, run_dir: str, providers_override: ProviderRegistry 
     results, unpriced_models = run_matrix(all_items, policies, providers, cache, cost)
     frontier = frontier_model_key(results, cost)
     aggs = aggregate(results, kinds, frontier)
-    gaps = perturbation_gaps(results)
+    validate = bool(cfg["probe"].get("validate", False))
+    gaps = perturbation_gaps(results, validate=validate)
+    validation = perturbation_validation(results)
     provenance = {
         "snapshot_date": cost.snapshot_date,
         "run_date": cfg.get("run_date", ""),
         "max_tokens": max_tokens,
         "generator": generator.key,
+        "perturbation_validate": validate,
+        "perturbation_validation": validation,
         "unpriced_models": unpriced_models,
     }
     doc = build_results_doc(aggs, results, provenance, frontier_model=frontier, perturbation=gaps)
     (out / "results.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
     shutil.copy(cfg["pricing"], out / Path(cfg["pricing"]).name)
+    if validate:
+        print(f"validation: kept {validation['kept']} of {validation['tasks']} tasks, "
+              f"dropped {len(validation['dropped'])}")
     for model, g in gaps.items():
         print(f"{model:<28} orig={g['acc_original'] * 100:5.1f}%  "
               f"pert={g['acc_perturbed'] * 100:5.1f}%  gap={g['gap'] * 100:+5.1f}pp  n={g['n']}")
-    print(f"Wrote {out / 'results.json'} — probe over {len(gaps)} models, {len(items)} fresh tasks")
+    print(f"Wrote {out / 'results.json'} — probe over {len(gaps)} models, generator {generator.key}")
     return 0
 
 
@@ -241,7 +253,8 @@ def cmd_verify(run_dir: str) -> int:
 
     stored_pert = doc.get("perturbation") or {}
     if stored_pert:
-        recomputed_pert = perturbation_gaps(recomputed_items)
+        validate = bool(doc["provenance"].get("perturbation_validate", False))
+        recomputed_pert = perturbation_gaps(recomputed_items, validate=validate)
         for model, stored in stored_pert.items():
             got = recomputed_pert.get(model)
             if got is None:

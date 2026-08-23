@@ -4,7 +4,12 @@ import textwrap
 
 from omnisbench import cli
 from omnisbench.cache import ResponseCache
-from omnisbench.probe import generate_perturbations, perturbation_gaps, tag_originals
+from omnisbench.probe import (
+    generate_perturbations,
+    perturbation_gaps,
+    perturbation_validation,
+    tag_originals,
+)
 from omnisbench.providers.base import ProviderRegistry
 from omnisbench.providers.mock import MockProvider
 from omnisbench.runner import ItemResult
@@ -38,6 +43,30 @@ def test_perturbation_gap_per_model():
 
 def test_perturbation_gap_skips_model_missing_a_variant():
     assert perturbation_gaps([_ir("A", "original", "t1", True)]) == {}
+
+
+def test_validation_drops_broken_and_uninformative_tasks():
+    results = [
+        # t1: solved originally, no model solves the reworded copy -> broken, dropped
+        _ir("A", "original", "t1", True), _ir("A", "perturbed", "t1", False),
+        _ir("B", "original", "t1", False), _ir("B", "perturbed", "t1", False),
+        # t2: original and reworded each solved by a model -> kept
+        _ir("A", "original", "t2", True), _ir("A", "perturbed", "t2", False),
+        _ir("B", "original", "t2", True), _ir("B", "perturbed", "t2", True),
+        # t3: no model solved the original -> uninformative, dropped
+        _ir("A", "original", "t3", False), _ir("A", "perturbed", "t3", False),
+    ]
+    val = perturbation_validation(results)
+    assert val["tasks"] == 3
+    assert val["kept"] == 1
+    assert val["dropped"] == ["lcb/t1", "lcb/t3"]
+
+    g = perturbation_gaps(results, validate=True)  # only t2 counts
+    assert g["A"]["n"] == 1
+    assert g["A"]["acc_original"] == 1.0 and g["A"]["acc_perturbed"] == 0.0
+    assert g["B"]["gap"] == 0.0
+
+    assert perturbation_gaps(results, validate=False)["A"]["n"] == 3  # all tasks without validation
 
 
 def test_generate_perturbations_keeps_reference_and_tags(tmp_path):
