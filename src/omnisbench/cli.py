@@ -13,6 +13,8 @@ from .config import build_policies, load_config
 from .cost import CostModel
 from .datasets.loaders import load_dataset_spec
 from .graders import GRADERS
+from .policies.baselines import AlwaysModelPolicy
+from .probe import generate_perturbations, perturbation_gaps, tag_originals
 from .providers.base import ProviderRegistry
 from .providers.openai_compat import OpenAICompatProvider
 from .report.html import render_report
@@ -82,6 +84,56 @@ def cmd_run(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | 
     (out / "results.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
     shutil.copy(cfg["pricing"], out / Path(cfg["pricing"]).name)
     print(f"Wrote {out / 'results.json'} — {len(results)} item-results, {len(aggs)} policies")
+    return 0
+
+
+def cmd_probe(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | None = None) -> int:
+    """Run the perturbation-gap contamination probe.
+
+    Reword each fresh problem (keeping its tests), score every model on the original and the
+    reworded copy, and report the drop per model. See docs/perturbation-probe.md.
+    """
+    cfg = load_config(cfg_path)
+    cost = CostModel(cfg["pricing"])
+    providers = providers_override or build_providers(cfg, dict(os.environ))
+    items = _load_items(cfg)
+    tag_originals(items)
+
+    gen = cfg["probe"]["generator"]
+    generator = ModelRef(gen["provider"], gen["model_id"])
+    max_tokens = int(cfg.get("max_tokens", 4096))
+
+    out = Path(run_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    cache = ResponseCache(out / "cache")
+
+    perturbed = generate_perturbations(
+        items, generator, providers, cache, int(cfg["probe"].get("gen_max_tokens", 2048)),
+    )
+    all_items = items + perturbed
+
+    models = {name: ModelRef(m["provider"], m["model_id"]) for name, m in cfg["models"].items()}
+    policies = [AlwaysModelPolicy(name, mref, max_tokens) for name, mref in models.items()]
+    kinds = {name: "transparent" for name in models}
+
+    results, unpriced_models = run_matrix(all_items, policies, providers, cache, cost)
+    frontier = frontier_model_key(results, cost)
+    aggs = aggregate(results, kinds, frontier)
+    gaps = perturbation_gaps(results)
+    provenance = {
+        "snapshot_date": cost.snapshot_date,
+        "run_date": cfg.get("run_date", ""),
+        "max_tokens": max_tokens,
+        "generator": generator.key,
+        "unpriced_models": unpriced_models,
+    }
+    doc = build_results_doc(aggs, results, provenance, frontier_model=frontier, perturbation=gaps)
+    (out / "results.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    shutil.copy(cfg["pricing"], out / Path(cfg["pricing"]).name)
+    for model, g in gaps.items():
+        print(f"{model:<28} orig={g['acc_original'] * 100:5.1f}%  "
+              f"pert={g['acc_perturbed'] * 100:5.1f}%  gap={g['gap'] * 100:+5.1f}pp  n={g['n']}")
+    print(f"Wrote {out / 'results.json'} — probe over {len(gaps)} models, {len(items)} fresh tasks")
     return 0
 
 
@@ -187,6 +239,21 @@ def cmd_verify(run_dir: str) -> int:
                       f"!= recomputed {recomputed_margins.get(split)}")
                 ok = False
 
+    stored_pert = doc.get("perturbation") or {}
+    if stored_pert:
+        recomputed_pert = perturbation_gaps(recomputed_items)
+        for model, stored in stored_pert.items():
+            got = recomputed_pert.get(model)
+            if got is None:
+                print(f"MISMATCH perturbation[{model}]: missing on re-derivation")
+                ok = False
+                continue
+            for field in ("n", "acc_original", "acc_perturbed", "gap"):
+                if abs(got[field] - stored[field]) > 1e-9:
+                    print(f"MISMATCH perturbation[{model}].{field}: "
+                          f"stored {stored[field]} != recomputed {got[field]}")
+                    ok = False
+
     if unpriced_models:
         print(f"WARNING: unpriced models in verify: {sorted(unpriced_models)} — costed as $0.00")
 
@@ -200,6 +267,9 @@ def main(argv=None) -> int:
     r = sub.add_parser("run")
     r.add_argument("--config", required=True)
     r.add_argument("--run", required=True)
+    pr = sub.add_parser("probe")
+    pr.add_argument("--config", required=True)
+    pr.add_argument("--run", required=True)
     rep = sub.add_parser("report")
     rep.add_argument("--run", required=True)
     v = sub.add_parser("verify")
@@ -207,6 +277,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if args.cmd == "run":
         return cmd_run(args.config, args.run)
+    if args.cmd == "probe":
+        return cmd_probe(args.config, args.run)
     if args.cmd == "report":
         return cmd_report(args.run)
     if args.cmd == "verify":

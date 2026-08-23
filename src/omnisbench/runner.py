@@ -226,12 +226,14 @@ def build_results_doc(
     splits: dict[str, list[PolicyAggregate]] | None = None,
     contamination: dict[str, int] | None = None,
     margins: dict[str, dict] | None = None,
+    perturbation: dict[str, dict] | None = None,
 ) -> dict:
     doc: dict = {
         "provenance": provenance,
         "frontier_model": frontier_model,
         "contamination_counts": contamination or {},
         "date_margins": margins or {},
+        "perturbation": perturbation or {},
         "leaderboard": [asdict(a) for a in aggregates],
         "splits": {
             split: [asdict(a) for a in aggs] for split, aggs in (splits or {}).items()
