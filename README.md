@@ -106,6 +106,15 @@ default `unknown`). A run then produces, on top of the overall leaderboard:
 All three are re-derived from the stored items by `omnisbench verify`, so a faked split number,
 escape rate or date margin fails verification the same way a tampered answer does.
 
+### Contamination probe (perturbation gap)
+
+The split labels and date margins are still a judgement. The perturbation-gap probe measures it. Score
+each model on the original problems and on reworded copies that keep the test cases identical, then
+publish the drop per model per split. A model that relied on the exact wording scores lower when it
+changes, so a large gap flags contamination for that model on that set, and a gap near zero means the
+score was earned. It re-grades offline like the rest of the run. Full method in
+[`docs/perturbation-probe.md`](docs/perturbation-probe.md). Spec'd, building next.
+
 ### Adding a fresh, contamination-resistant split
 
 A fresh split filters a dated dataset down to problems published after the models' training cutoff.
