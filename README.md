@@ -115,11 +115,12 @@ changes, so a large gap flags contamination for that model on that set, and a ga
 score was earned. It re-grades offline like the rest of the run. Full method in
 [`docs/perturbation-probe.md`](docs/perturbation-probe.md).
 
-Run it with `omnisbench probe --config configs/probe-run.yaml`. In the first run
-(`runs/probe-2026-08-23`) the cheaper models dropped hard when reworded, gpt-5-nano from 75% to 0%
-and gpt-5 from 75% to 25%, while opus-5 held at 100% to 87.5%. Most of the smaller models' fresh
-score rode on the wording. One caveat you can check: opus-5 generated the rewordings, so weigh its
-own small gap with that in mind.
+Run it with `omnisbench probe --config configs/probe-run.yaml`. The generator is claude-sonnet-5,
+which sits outside the scored pool, and a validation pass drops any rewording no model can solve. In
+the current run (`runs/probe-clean-2026-08-24`, 6 of 8 tasks kept) gpt-5-nano loses most of its score
+to rewording (66.7% to 16.7%, +50pp), while opus-5 and gpt-5 hold up best (+16.7pp each) and haiku
+sits between (+33.3pp). Using a neutral generator raised opus-5's gap from an earlier draft run and
+cut gpt-5's, so the ranking is more trustworthy now.
 
 ### Adding a fresh, contamination-resistant split
 

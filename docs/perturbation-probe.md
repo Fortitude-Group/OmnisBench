@@ -89,19 +89,27 @@ A model with a 20-point gap on a set is telling you its score there rode on the 
 its number on that set less. A model with a 2-point gap earned its score. Publish both accuracies and
 the gap, and let the reader weigh it.
 
-## First run (runs/probe-2026-08-23)
+## Runs
 
-Eight fresh LiveCodeBench problems, reworded by claude-opus-5, tests held identical.
+### Current: runs/probe-clean-2026-08-24
+
+Generator claude-sonnet-5 (outside the scored pool), validation on. Eight fresh LiveCodeBench
+problems, 6 kept (abc387_f and abc394_d dropped, no model solved their reworded copy).
 
 | Model | Original | Reworded | Gap |
 |---|---:|---:|---:|
-| claude-opus-5 | 100.0% | 87.5% | +12.5pp |
-| gpt-5 | 75.0% | 25.0% | +50.0pp |
-| claude-haiku-4-5 | 50.0% | 25.0% | +25.0pp |
-| gpt-5-nano | 75.0% | 0.0% | +75.0pp |
+| claude-opus-5 | 100.0% | 83.3% | +16.7pp |
+| gpt-5 | 66.7% | 50.0% | +16.7pp |
+| claude-haiku-4-5 | 66.7% | 33.3% | +33.3pp |
+| gpt-5-nano | 66.7% | 16.7% | +50.0pp |
 
-The cheaper models drop hard when the wording changes, so most of their score on these recent problems
-rode on the exact phrasing. opus-5 mostly holds, and it solves the reworded copies, so the rewordings
-are still valid problems rather than broken ones. Caveat: opus-5 generated the rewordings, so its own
-small gap is partly self-favouring. A cleaner follow-up uses a separate generator and a validation pass.
-Cost of this run: $2.39 in new calls, on top of the reused fresh-set inference.
+gpt-5-nano loses most of its score to rewording, so its number on these recent problems rode on the
+exact phrasing. opus-5 and gpt-5 hold up best. Residual caveat: sonnet-5 is the same provider family
+as opus-5 and haiku-4-5, so a fully cross-family generator would be cleaner still. Cost: $2.11 in new
+calls, on top of the reused fresh-set inference.
+
+### First draft: runs/probe-2026-08-23
+
+Generator claude-opus-5, no validation. Superseded, because opus-5 rewrote its own problems. That
+flattered its gap (+12.5pp there against +16.7pp here) and inflated gpt-5's (+50pp there against
++16.7pp here) through rewordings only opus-5 could parse.
