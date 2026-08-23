@@ -1,6 +1,7 @@
 # Perturbation-gap contamination probe
 
-Status: spec. Not built. This is the next contamination-measurement step after the date margins.
+Status: built. Run `omnisbench probe --config configs/probe-run.yaml`. First run in
+`runs/probe-2026-08-23`, re-gradable with `omnisbench verify runs/probe-2026-08-23`.
 
 ## Why it exists
 
@@ -87,3 +88,20 @@ it on the fresh set at a small N, capped the same way the fresh run is.
 A model with a 20-point gap on a set is telling you its score there rode on the exact wording, so trust
 its number on that set less. A model with a 2-point gap earned its score. Publish both accuracies and
 the gap, and let the reader weigh it.
+
+## First run (runs/probe-2026-08-23)
+
+Eight fresh LiveCodeBench problems, reworded by claude-opus-5, tests held identical.
+
+| Model | Original | Reworded | Gap |
+|---|---:|---:|---:|
+| claude-opus-5 | 100.0% | 87.5% | +12.5pp |
+| gpt-5 | 75.0% | 25.0% | +50.0pp |
+| claude-haiku-4-5 | 50.0% | 25.0% | +25.0pp |
+| gpt-5-nano | 75.0% | 0.0% | +75.0pp |
+
+The cheaper models drop hard when the wording changes, so most of their score on these recent problems
+rode on the exact phrasing. opus-5 mostly holds, and it solves the reworded copies, so the rewordings
+are still valid problems rather than broken ones. Caveat: opus-5 generated the rewordings, so its own
+small gap is partly self-favouring. A cleaner follow-up uses a separate generator and a validation pass.
+Cost of this run: $2.39 in new calls, on top of the reused fresh-set inference.

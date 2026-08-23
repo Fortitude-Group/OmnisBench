@@ -1,0 +1,5 @@
+anthropic/claude-haiku-4-5   orig= 50.0%  pert= 25.0%  gap=+25.0pp  n=8
+anthropic/claude-opus-5      orig=100.0%  pert= 87.5%  gap=+12.5pp  n=8
+openai/gpt-5                 orig= 75.0%  pert= 25.0%  gap=+50.0pp  n=8
+openai/gpt-5-nano            orig= 75.0%  pert=  0.0%  gap=+75.0pp  n=8
+Wrote runs\probe-2026-08-23\results.json — probe over 4 models, 8 fresh tasks

@@ -113,7 +113,13 @@ each model on the original problems and on reworded copies that keep the test ca
 publish the drop per model per split. A model that relied on the exact wording scores lower when it
 changes, so a large gap flags contamination for that model on that set, and a gap near zero means the
 score was earned. It re-grades offline like the rest of the run. Full method in
-[`docs/perturbation-probe.md`](docs/perturbation-probe.md). Spec'd, building next.
+[`docs/perturbation-probe.md`](docs/perturbation-probe.md).
+
+Run it with `omnisbench probe --config configs/probe-run.yaml`. In the first run
+(`runs/probe-2026-08-23`) the cheaper models dropped hard when reworded, gpt-5-nano from 75% to 0%
+and gpt-5 from 75% to 25%, while opus-5 held at 100% to 87.5%. Most of the smaller models' fresh
+score rode on the wording. One caveat you can check: opus-5 generated the rewordings, so weigh its
+own small gap with that in mind.
 
 ### Adding a fresh, contamination-resistant split
 
