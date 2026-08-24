@@ -89,27 +89,37 @@ A model with a 20-point gap on a set is telling you its score there rode on the 
 its number on that set less. A model with a 2-point gap earned its score. Publish both accuracies and
 the gap, and let the reader weigh it.
 
-## Runs
+## Runs and the cross-family view
 
-### Current: runs/probe-clean-2026-08-24
+The pool spans two providers, so no single generator is cross-family to all of it. We rework with one
+generator per family and read each model's gap from the run whose generator is a different provider.
 
-Generator claude-sonnet-5 (outside the scored pool), validation on. Eight fresh LiveCodeBench
-problems, 6 kept (abc387_f and abc394_d dropped, no model solved their reworded copy).
+### Cross-family gap
 
-| Model | Original | Reworded | Gap |
-|---|---:|---:|---:|
-| claude-opus-5 | 100.0% | 83.3% | +16.7pp |
-| gpt-5 | 66.7% | 50.0% | +16.7pp |
-| claude-haiku-4-5 | 66.7% | 33.3% | +33.3pp |
-| gpt-5-nano | 66.7% | 16.7% | +50.0pp |
+Each model reworded by a model from the other provider, validation on.
 
-gpt-5-nano loses most of its score to rewording, so its number on these recent problems rode on the
-exact phrasing. opus-5 and gpt-5 hold up best. Residual caveat: sonnet-5 is the same provider family
-as opus-5 and haiku-4-5, so a fully cross-family generator would be cleaner still. Cost: $2.11 in new
-calls, on top of the reused fresh-set inference.
+| Model | Reworded by | Original | Reworded | Gap |
+|---|---|---:|---:|---:|
+| claude-opus-5 | gpt-5 | 100.0% | 85.7% | +14.3pp |
+| gpt-5 | claude-sonnet-5 | 66.7% | 50.0% | +16.7pp |
+| claude-haiku-4-5 | gpt-5 | 42.9% | 42.9% | +0.0pp |
+| gpt-5-nano | claude-sonnet-5 | 66.7% | 16.7% | +50.0pp |
 
-### First draft: runs/probe-2026-08-23
+gpt-5-nano loses most of its score to the cross-family rewrite, and it drops as hard under the other
+generator (+71.4pp), so that signal holds. opus-5 and gpt-5 hold up well. haiku shows no gap under
+gpt-5 rewording and +33.3pp under sonnet, so at 6 to 7 tasks per model it sits in the noise. The read
+that survives: the smallest model's recent score leans on the wording, the frontier models earn theirs.
 
-Generator claude-opus-5, no validation. Superseded, because opus-5 rewrote its own problems. That
-flattered its gap (+12.5pp there against +16.7pp here) and inflated gpt-5's (+50pp there against
-+16.7pp here) through rewordings only opus-5 could parse.
+### The two source runs
+
+- `runs/probe-clean-2026-08-24`: generator claude-sonnet-5, cross-family for the OpenAI models. Kept 6
+  of 8 tasks. $2.11.
+- `runs/probe-openai-2026-08-24`: generator gpt-5, cross-family for the Anthropic models. Kept 7 of 8.
+  $1.98.
+
+Both re-derive with `omnisbench verify`.
+
+### First draft: runs/probe-2026-08-23 (superseded)
+
+Generator claude-opus-5, no validation. opus-5 rewrote its own problems, which flattered its gap and
+inflated gpt-5's through rewordings only opus-5 could parse. Kept for the record.

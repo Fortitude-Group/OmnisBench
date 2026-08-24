@@ -1,0 +1,6 @@
+validation: kept 7 of 8 tasks, dropped 1
+anthropic/claude-haiku-4-5   orig= 42.9%  pert= 42.9%  gap= +0.0pp  n=7
+anthropic/claude-opus-5      orig=100.0%  pert= 85.7%  gap=+14.3pp  n=7
+openai/gpt-5                 orig= 71.4%  pert= 28.6%  gap=+42.9pp  n=7
+openai/gpt-5-nano            orig= 71.4%  pert=  0.0%  gap=+71.4pp  n=7
+Wrote runs\probe-openai-2026-08-24\results.json — probe over 4 models, generator openai/gpt-5

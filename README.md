@@ -115,12 +115,13 @@ changes, so a large gap flags contamination for that model on that set, and a ga
 score was earned. It re-grades offline like the rest of the run. Full method in
 [`docs/perturbation-probe.md`](docs/perturbation-probe.md).
 
-Run it with `omnisbench probe --config configs/probe-run.yaml`. The generator is claude-sonnet-5,
-which sits outside the scored pool, and a validation pass drops any rewording no model can solve. In
-the current run (`runs/probe-clean-2026-08-24`, 6 of 8 tasks kept) gpt-5-nano loses most of its score
-to rewording (66.7% to 16.7%, +50pp), while opus-5 and gpt-5 hold up best (+16.7pp each) and haiku
-sits between (+33.3pp). Using a neutral generator raised opus-5's gap from an earlier draft run and
-cut gpt-5's, so the ranking is more trustworthy now.
+Run it with `omnisbench probe`. Because the pool spans two providers and a rewriter could favour its
+own family's phrasing, each model's gap uses a rewriter from the other provider: opus-5 and haiku-4-5
+reworded by gpt-5 (`runs/probe-openai-2026-08-24`), gpt-5 and gpt-5-nano reworded by claude-sonnet-5
+(`runs/probe-clean-2026-08-24`). A validation pass drops any rewording no model can solve. gpt-5-nano
+loses most of its score to the cross-family rewrite (66.7% to 16.7%, +50pp) and drops as hard under
+the other generator, so that signal holds. opus-5 and gpt-5 hold up (+14 to +17pp). haiku is
+inconsistent between the two rewriters, so at 6 to 7 tasks it's noise.
 
 ### Adding a fresh, contamination-resistant split
 

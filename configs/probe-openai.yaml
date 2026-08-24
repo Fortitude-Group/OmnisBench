@@ -1,0 +1,21 @@
+# Perturbation-gap probe, OpenAI generator. Pairs with configs/probe-run.yaml (Anthropic
+# generator). No single generator is cross-family to a pool that spans two providers, so we
+# rework with one model per family. gpt-5 here gives cross-family rewordings for the Anthropic
+# models (opus-5, haiku-4-5); claude-sonnet-5 in probe-run.yaml covers the OpenAI models.
+run_date: "2026-08-24"
+max_tokens: 16384
+pricing: "config/pricing/2026-08-18.yaml"
+providers:
+  openai:    { base_url: "https://api.openai.com/v1",    api_key_env: "OPENAI_API_KEY",    token_param: "max_completion_tokens", send_sampling: false }
+  anthropic: { base_url: "https://api.anthropic.com/v1", api_key_env: "ANTHROPIC_API_KEY", token_param: "max_tokens",            send_sampling: false }
+datasets:
+  - { kind: livecodebench, name: livecodebench, seed: 0, limit: 8, contamination: fresh, min_date: "2025-01-01" }
+models:
+  opus5: { provider: anthropic, model_id: "claude-opus-5" }
+  gpt5:  { provider: openai,    model_id: "gpt-5" }
+  haiku: { provider: anthropic, model_id: "claude-haiku-4-5" }
+  nano:  { provider: openai,    model_id: "gpt-5-nano" }
+probe:
+  generator: { provider: openai, model_id: "gpt-5" }
+  gen_max_tokens: 4096
+  validate: true
