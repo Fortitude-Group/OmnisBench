@@ -89,37 +89,54 @@ A model with a 20-point gap on a set is telling you its score there rode on the 
 its number on that set less. A model with a 2-point gap earned its score. Publish both accuracies and
 the gap, and let the reader weigh it.
 
-## Runs and the cross-family view
+## Runs and the gap matrix
 
-The pool spans two providers, so no single generator is cross-family to all of it. We rework with one
-generator per family and read each model's gap from the run whose generator is a different provider.
+The pool spans two providers, so a single rewriter isn't neutral to all of it. We reword the whole pool
+with two generators, one per family, and read each model's gap under each. That also shows how much the
+rewriter, rather than the model, drives the gap.
 
-### Cross-family gap
+### The gap matrix
 
-Each model reworded by a model from the other provider, validation on.
+24 fresh LiveCodeBench problems, reworded by claude-sonnet-5 and by gpt-5, validation on (drop any
+rewrite no model in the pool can solve).
 
-| Model | Reworded by | Original | Reworded | Gap |
-|---|---|---:|---:|---:|
-| claude-opus-5 | gpt-5 | 100.0% | 85.7% | +14.3pp |
-| gpt-5 | claude-sonnet-5 | 66.7% | 50.0% | +16.7pp |
-| claude-haiku-4-5 | gpt-5 | 42.9% | 42.9% | +0.0pp |
-| gpt-5-nano | claude-sonnet-5 | 66.7% | 16.7% | +50.0pp |
+```text
+gap when reworded by       sonnet-5    gpt-5
+claude-opus-5                +20.0      +5.9
+claude-haiku-4-5             +40.0      +5.9
+gpt-5                        +20.0     +23.5
+gpt-5-nano                   +20.0     +52.9
+                             n=15       n=17
+```
 
-gpt-5-nano loses most of its score to the cross-family rewrite, and it drops as hard under the other
-generator (+71.4pp), so that signal holds. opus-5 and gpt-5 hold up well. haiku shows no gap under
-gpt-5 rewording and +33.3pp under sonnet, so at 6 to 7 tasks per model it sits in the noise. The read
-that survives: the smallest model's recent score leans on the wording, the frontier models earn theirs.
+How to read it:
 
-### The two source runs
+- gpt-5 gives up about 20 points under either rewriter. A gap that survives changing the rewriter is a
+  real wording-reliance signal for that model on this set.
+- Every other model's gap swings with the rewriter. The Anthropic models drop about 6 points under
+  gpt-5's rewrites and 20 to 40 under sonnet's. gpt-5-nano does the reverse. sonnet is a harsher
+  rewriter than gpt-5, and the two runs keep different validated subsets (15 vs 17 tasks), so at this N
+  the rewriter and the surviving tasks move the number more than the model does.
+- What holds across the board: every model loses at least 6 points when a fresh problem is reworded. A
+  post-cutoff date keeps the exact problem out of training. The phrasing and structure are not. Read the
+  split label as necessary and not sufficient.
 
-- `runs/probe-clean-2026-08-24`: generator claude-sonnet-5, cross-family for the OpenAI models. Kept 6
-  of 8 tasks. $2.11.
-- `runs/probe-openai-2026-08-24`: generator gpt-5, cross-family for the Anthropic models. Kept 7 of 8.
-  $1.98.
+Ranking the pool by memorisation needs a larger N and several rewriters per model, so the model's signal
+separates from the rewriter's. That's the roadmap for the probe.
+
+### The source runs
+
+- `runs/probe-sonnet-24-2026-08-25`: generator claude-sonnet-5, cross-family for the OpenAI models. Kept
+  15 of 24. VERIFY OK.
+- `runs/probe-gpt5-24-2026-08-25`: generator gpt-5, cross-family for the Anthropic models. Kept 17 of 24.
+  VERIFY OK.
 
 Both re-derive with `omnisbench verify`.
 
-### First draft: runs/probe-2026-08-23 (superseded)
+### Earlier runs (superseded)
 
-Generator claude-opus-5, no validation. opus-5 rewrote its own problems, which flattered its gap and
-inflated gpt-5's through rewordings only opus-5 could parse. Kept for the record.
+- `runs/probe-2026-08-23`: generator claude-opus-5, no validation. opus-5 rewrote its own problems, which
+  flattered its gap. Kept for the record.
+- `runs/probe-clean-2026-08-24` and `runs/probe-openai-2026-08-24`: the first cross-family pair, 8 tasks
+  each. Too small. The single-rewriter gaps they reported (nano +50pp, the frontier near zero) didn't
+  survive rewording the pool twice at a larger N. Superseded by the 24-task runs above.

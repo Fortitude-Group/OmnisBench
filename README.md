@@ -115,13 +115,16 @@ changes, so a large gap flags contamination for that model on that set, and a ga
 score was earned. It re-grades offline like the rest of the run. Full method in
 [`docs/perturbation-probe.md`](docs/perturbation-probe.md).
 
-Run it with `omnisbench probe`. Because the pool spans two providers and a rewriter could favour its
-own family's phrasing, each model's gap uses a rewriter from the other provider: opus-5 and haiku-4-5
-reworded by gpt-5 (`runs/probe-openai-2026-08-24`), gpt-5 and gpt-5-nano reworded by claude-sonnet-5
-(`runs/probe-clean-2026-08-24`). A validation pass drops any rewording no model can solve. gpt-5-nano
-loses most of its score to the cross-family rewrite (66.7% to 16.7%, +50pp) and drops as hard under
-the other generator, so that signal holds. opus-5 and gpt-5 hold up (+14 to +17pp). haiku is
-inconsistent between the two rewriters, so at 6 to 7 tasks it's noise.
+Run it with `omnisbench probe`. Because the pool spans two providers and a rewriter isn't neutral to
+all of it, we reword the whole pool with two generators, claude-sonnet-5 (`runs/probe-sonnet-24-2026-08-25`)
+and gpt-5 (`runs/probe-gpt5-24-2026-08-25`), and read each model's gap under each. A validation pass
+drops any rewording no model can solve. On 24 fresh problems, gpt-5 gives up about 20 points under
+either rewriter, a wording-reliance signal that survives changing the rewriter. Every other model's gap
+swings with who did the rewording (the Anthropic models drop about 6 points under gpt-5 and 20 to 40
+under sonnet, and gpt-5-nano does the reverse), so at 15 to 17 validated tasks the rewriter moves the
+number more than the model does. What holds across the board: every model loses at least 6 points when
+a fresh problem is reworded, so a post-cutoff date is necessary and not sufficient. Full matrix and both
+source runs in [`docs/perturbation-probe.md`](docs/perturbation-probe.md).
 
 ### Adding a fresh, contamination-resistant split
 

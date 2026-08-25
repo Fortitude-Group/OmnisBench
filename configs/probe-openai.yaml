@@ -9,7 +9,7 @@ providers:
   openai:    { base_url: "https://api.openai.com/v1",    api_key_env: "OPENAI_API_KEY",    token_param: "max_completion_tokens", send_sampling: false }
   anthropic: { base_url: "https://api.anthropic.com/v1", api_key_env: "ANTHROPIC_API_KEY", token_param: "max_tokens",            send_sampling: false }
 datasets:
-  - { kind: livecodebench, name: livecodebench, seed: 0, limit: 8, contamination: fresh, min_date: "2025-01-01" }
+  - { kind: livecodebench, name: livecodebench, seed: 0, limit: 24, contamination: fresh, min_date: "2025-01-01" }
 models:
   opus5: { provider: anthropic, model_id: "claude-opus-5" }
   gpt5:  { provider: openai,    model_id: "gpt-5" }
