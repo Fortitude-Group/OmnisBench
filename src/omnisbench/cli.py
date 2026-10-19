@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .cache import ResponseCache
+from .cache import BudgetedCache, ResponseCache
 from .config import build_policies, load_config
 from .cost import CostModel
 from .datasets.loaders import load_dataset_spec
@@ -67,8 +67,11 @@ def cmd_run(cfg_path: str, run_dir: str, providers_override: ProviderRegistry | 
 
     out = Path(run_dir)
     out.mkdir(parents=True, exist_ok=True)
-    cache = ResponseCache(out / "cache")
+    cap = cfg.get("max_spend_usd")
+    cache = BudgetedCache(out / "cache", cost, cap) if cap else ResponseCache(out / "cache")
     results, unpriced_models = run_matrix(items, policies, providers, cache, cost)
+    if cap:
+        print(f"New spend this run directory: ${cache.spent_usd:.2f} of the ${float(cap):.2f} cap")
     frontier = frontier_model_key(results, cost)
     aggs = aggregate(results, kinds, frontier)
     splits = split_leaderboards(results, kinds, frontier)
