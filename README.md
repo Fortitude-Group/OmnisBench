@@ -67,6 +67,30 @@ Read these numbers honestly:
 The larger contaminated-only baseline (HumanEval 164 + GSM8K 200) still lives in `runs/2026-08-19/`
 for reference; its numbers are pinned near 100% for the reason above.
 
+### October 2026: no fresh split for the new models
+
+The run of 19 October 2026 covers `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`,
+`gpt-5.6-terra` and `gpt-5.6-luna`. Ignore the directory name, `runs/fresh-2026-10-19/`. Nothing in
+it is fresh. The newest LiveCodeBench release (v6) stops at 6 April 2025, and the earliest cutoff in
+this pool is 16 February 2026, so the median problem is 359 days OLDER than the cutoff. Those 50
+problems are tagged `recent_pre_cutoff`: recent, but the models could have seen them.
+
+| Policy | LiveCodeBench v6, 50 tasks | Cost / 1,000 | All 150 tasks | Cost / 1,000 |
+|---|---:|---:|---:|---:|
+| oracle | 96.0% | $4.25 | 98.7% | $1.54 |
+| always_sonnet55 | 96.0% | $29.39 | 98.7% | $11.43 |
+| always_terra | 94.0% | $23.04 | 92.7% | $9.03 |
+| always_big (Opus 5.5) | 92.0% | $44.24 | 97.3% | $18.47 |
+| always_cheap (Haiku 5.5) | 88.0% | $2.91 | 95.3% | $1.09 |
+| random | 88.0% | $14.54 | 92.7% | $6.47 |
+| always_luna | 84.0% | $2.79 | 90.0% | $1.11 |
+
+Haiku 5.5 gets within four points of Opus 5.5 on the newer problems for about a fifteenth of the
+price. But four points is two problems out of fifty, so don't read the order of the top four as
+settled. The run cost $6.17, and `omnisbench verify --run runs/fresh-2026-10-19` re-grades it offline
+(it passes with networking switched off). A genuinely fresh coding set for this generation needs
+problems from after February 2026, and LiveCodeBench hasn't published any.
+
 Reproduce (needs `OPENAI_API_KEY` + `ANTHROPIC_API_KEY`, `pip install datasets` for LiveCodeBench,
 and a container per the warning above):
 
